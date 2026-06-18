@@ -94,8 +94,6 @@ def handle_guess(player_guess):
 
         "correct": correct,
 
-        "tankards": game_state.tankards,
-
         "round": current_round,
 
         "won": won,
