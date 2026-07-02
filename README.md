@@ -62,19 +62,19 @@ docker compose restart
 
 ```
 ride-the-bus/
-  server.py              - Flask app and API routes
-  requirements.txt       - Python dependencies
-  Dockerfile             - Container build instructions
-  docker-compose.yml     - Container run configuration
-  game_logic/
-    deck.py              - Card deck building and shuffling
-    account.py           - SQLite account management
-    ride_the_bus.py      - Game logic (phases, guessing, payouts)
-  templates/
-    ride_the_bus.html    - Game UI (talks to server via fetch)
-  static/
-    css/style.css        - Retro pixel art styling
-  data/                  - Created automatically, holds accounts.db
+    server.py              - Flask app and API routes
+    requirements.txt       - Python dependencies
+    Dockerfile             - Container build instructions
+    docker-compose.yml     - Container run configuration
+    game_logic/
+        deck.py              - Card deck building and shuffling
+        account.py           - SQLite account management
+        ride_the_bus.py      - Game logic (phases, guessing, payouts)
+    templates/
+        ride_the_bus.html    - Game UI (talks to server via fetch)
+    static/
+        css/style.css        - Retro pixel art styling
+    data/                  - Created automatically, holds accounts.db
 ```
 
 ## Data Persistence
