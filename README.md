@@ -21,41 +21,6 @@ Guess all 4 correctly and you ride the full bus at 20x your bet. One wrong guess
 
 ---
 
-## Running with Docker Hub (Recommended)
-
-No need to clone the repo. Just create a folder, add a `docker-compose.yml`, and run it.
-
-**1. Create the compose file**
-
-Create a file called `docker-compose.yml` with the following content:
-
-```yaml
-services:
-  game:
-    image: unitedsteak0/ride-the-bus:latest
-    ports:
-      - "5001:5000"
-    volumes:
-      - ./data:/data
-    environment:
-      - DB_PATH=/data/accounts.db
-    restart: unless-stopped
-```
-
-**2. Start the container**
-
-```bash
-docker compose up -d
-```
-
-**3. Open the game**
-
-Go to `http://localhost:5001` in your browser.
-
----
-
-## Running from Source
-
 **1. Clone the repo**
 
 ```bash
