@@ -18,6 +18,7 @@ Guess all 4 correctly and you ride the full bus at 20x your bet. One wrong guess
 
 - [Docker](https://docs.docker.com/get-docker/)
 - [Docker Compose](https://docs.docker.com/compose/install/) (included with Docker Desktop)
+- [GIT](https://git-scm.com/install/)
 
 ---
 
@@ -75,21 +76,6 @@ ride-the-bus/
     css/style.css        - Retro pixel art styling
   data/                  - Created automatically, holds accounts.db
 ```
-
----
-
-## Hosting on a Home Server
-
-If you are running this on a home server with CasaOS or similar, the easiest way to expose it publicly without opening ports is to use a **Cloudflare Tunnel**:
-
-1. Install Cloudflare Tunnel from the CasaOS app store
-2. Log in with your Cloudflare account
-3. Create a tunnel pointing to `localhost:5001`
-4. Assign it a subdomain like `game.yourdomain.com`
-
-Players can then access it at `https://game.yourdomain.com` with no port forwarding required.
-
----
 
 ## Data Persistence
 
