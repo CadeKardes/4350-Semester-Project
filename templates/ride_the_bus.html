@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Ride the Bus</title>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+
+<h1>Ride the Bus</h1>
+<p id="subtitle">Place your bet and ride for a multiplier</p>
+<p id="player-tag" style="font-size:0.78rem;opacity:0.5;margin-bottom:4px;">
+  Account ID: {{ player_id }} &nbsp;|&nbsp; First visit grants 5,000 chips
+</p>
+
+<div id="game-area">
+
+  <div id="money-bar">
+    <span>Balance: <strong id="balanceDisplay">{{ balance }}</strong> chips</span>
+    <span>Bet: <strong id="betDisplay">0</strong></span>
+    <span>Potential: <strong id="potentialDisplay">0</strong></span>
+  </div>
+
+  <div id="multiplier-strip">
+    <div class="mult-chip" id="chip0">Round 1 &bull; 2x</div>
+    <div class="mult-chip" id="chip1">Round 2 &bull; 3x</div>
+    <div class="mult-chip" id="chip2">Round 3 &bull; 4x</div>
+    <div class="mult-chip" id="chip3">Round 4 &bull; 20x</div>
+  </div>
+
+  <div id="phase-banner">Place your bet to start!</div>
+  <div id="question-box">How much are you willing to risk?</div>
+
+  <div id="card-area"></div>
+  <div id="result-msg"></div>
+
+  <div id="bet-area">
+    <label>Enter your bet:</label>
+    <div id="bet-display">0</div>
+    <div id="keypad">
+      <button class="kp-btn" onclick="kpPress('7')">7</button>
+      <button class="kp-btn" onclick="kpPress('8')">8</button>
+      <button class="kp-btn" onclick="kpPress('9')">9</button>
+      <button class="kp-btn" onclick="kpPress('4')">4</button>
+      <button class="kp-btn" onclick="kpPress('5')">5</button>
+      <button class="kp-btn" onclick="kpPress('6')">6</button>
+      <button class="kp-btn" onclick="kpPress('1')">1</button>
+      <button class="kp-btn" onclick="kpPress('2')">2</button>
+      <button class="kp-btn" onclick="kpPress('3')">3</button>
+      <button class="kp-btn kp-del" onclick="kpPress('del')">X</button>
+      <button class="kp-btn" onclick="kpPress('0')">0</button>
+      <button class="kp-btn kp-enter" onclick="placeBet()">&#10003;</button>
+    </div>
+  </div>
+
+  <div id="buttons"></div>
+
+  <div id="round-log"><h3>Round History</h3></div>
+</div>
+
+<script>
+  // Current balance tracked client-side for display; server is always the source of truth
+  let balance = {{ balance }};
+  let currentBet = 0;
+  let currentPhase = 0;
+  let currentMultiplier = 1;
+
+  const MULTIPLIERS = [2, 3, 4, 20];
+
+  // ---------- Keypad ----------
+
+  // Builds the bet amount digit by digit from keypad presses
+  function kpPress(key) {
+    const disp = document.getElementById('bet-display');
+    let cur = disp.textContent;
+    if (key === 'del') {
+      cur = cur.length > 1 ? cur.slice(0, -1) : '0';
+    } else {
+      cur = cur === '0' ? key : cur + key;
+      if (cur.length > 7) return;
+    }
+    disp.textContent = cur;
+  }
+
+  // ---------- UI helpers ----------
+
+  function setResult(msg)  { document.getElementById('result-msg').textContent = msg; }
+  function setQuestion(q)  { document.getElementById('question-box').textContent = q; }
+  function setPhase(txt)   { document.getElementById('phase-banner').textContent = txt; }
+
+  function updateMoneyBar(bal, bet, mult) {
+    balance = bal;
+    currentBet = bet;
+    document.getElementById('balanceDisplay').textContent = bal.toLocaleString();
+    document.getElementById('betDisplay').textContent = bet.toLocaleString();
+    document.getElementById('potentialDisplay').textContent = (bet * mult).toLocaleString();
+  }
+
+  // Marks round chips as done (green), active (gold), or default (gray)
+  function updateChips(phase) {
+    currentPhase = phase;
+    for (let i = 0; i < 4; i++) {
+      const chip = document.getElementById('chip' + i);
+      chip.className = 'mult-chip';
+      if (i < phase)        chip.classList.add('done');
+      else if (i === phase) chip.classList.add('active');
+    }
+  }
+
+  function resetChips() {
+    for (let i = 0; i < 4; i++)
+      document.getElementById('chip' + i).className = 'mult-chip';
+  }
+
+  // Renders card HTML from a card object returned by the server
+  function renderCard(card) {
+    const div = document.createElement('div');
+    if (card.face_down) {
+      div.className = 'card face-down';
+    } else {
+      div.className = 'card ' + (card.red ? 'red' : 'black');
+      div.innerHTML = `
+        <span class="corner tl">${card.rank}<br>${card.suit}</span>
+        <span class="suit">${card.suit}</span>
+        <span class="corner br">${card.rank}<br>${card.suit}</span>
+      `;
+    }
+    return div;
+  }
+
+  // Clears and redraws the card area from an array of card objects
+  function setCardArea(cards) {
+    const area = document.getElementById('card-area');
+    area.innerHTML = '';
+    cards.forEach(c => area.appendChild(renderCard(c)));
+  }
+
+  // Adds a line to the round history log
+  function addLogs(entries) {
+    const log = document.getElementById('round-log');
+    entries.forEach(entry => {
+      const p = document.createElement('p');
+      p.className = entry.type === 'win' ? 'log-win' : entry.type === 'lose' ? 'log-lose' : 'log-cash';
+      p.textContent = entry.msg;
+      log.appendChild(p);
+    });
+    log.scrollTop = log.scrollHeight;
+  }
+
+  // ---------- Game actions ----------
+
+  // Sends the bet to the server and starts the game
+  async function placeBet() {
+    const bet = parseInt(document.getElementById('bet-display').textContent, 10);
+    if (isNaN(bet) || bet < 1) { alert('Enter a valid bet.'); return; }
+
+    const res = await fetch('/api/bet', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ bet })
+    });
+    const data = await res.json();
+    if (!res.ok) { alert(data.error); return; }
+
+    document.getElementById('round-log').innerHTML = '<h3>Round History</h3>';
+    document.getElementById('bet-area').style.display = 'none';
+    document.getElementById('buttons').innerHTML = '';
+    setResult('');
+
+    updateMoneyBar(data.balance, bet, data.multiplier);
+    updateChips(data.phase);
+    setPhase('Round 1 of 4');
+    setQuestion(data.question);
+    setCardArea(data.cards);
+    showGuessButtons(data.phase, data.multiplier);
+  }
+
+  // Sends a guess to the server and handles the response
+  async function sendGuess(guess) {
+    const res = await fetch('/api/guess', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ guess })
+    });
+    const data = await res.json();
+    if (!res.ok) { alert(data.error); return; }
+
+    setCardArea(data.cards);
+    addLogs(data.log.slice(-1)); // add only the newest log entry
+    updateMoneyBar(data.balance, currentBet, data.prev_multiplier || currentMultiplier);
+    updateChips(data.phase);
+
+    if (data.status === 'active') {
+      // Correct guess - show Keep Riding / Withdraw options
+      const winnings = data.potential;
+      setResult(`Correct! Ride further or withdraw ${winnings.toLocaleString()} chips.`);
+      setPhase(`Round ${data.phase + 1} of 4`);
+      setQuestion(data.question);
+
+      const btnArea = document.getElementById('buttons');
+      btnArea.innerHTML = '';
+
+      const continueBtn = document.createElement('button');
+      continueBtn.className = 'btn-green';
+      continueBtn.textContent = `Keep Riding (${data.multiplier}x next)`;
+      continueBtn.onclick = () => advancePhase(data.phase, data.multiplier);
+      btnArea.appendChild(continueBtn);
+
+      currentMultiplier = data.multiplier;
+
+    } else if (data.status === 'won') {
+      setPhase('You Rode the Whole Bus!');
+      setQuestion(`Full payout: ${data.payout.toLocaleString()} chips (20x)`);
+      setResult(`Profit: +${(data.payout - currentBet).toLocaleString()} chips`);
+      resetChips();
+      showEndButtons(data.balance, data.pity_msg);
+
+    } else if (data.status === 'lost') {
+      setResult('Wrong. You lost your bet.');
+      resetChips();
+      if (data.pity_msg) {
+        showPitySequence(data.pity_msg);
+      } else {
+        showEndButtons(data.balance, null);
+      }
+    }
+  }
+
+  // Tells the server to advance to the next phase card (Keep Riding)
+  async function advancePhase(phase, mult) {
+    // Re-fetch the game state by sending a special "next" advance via a new guess fetch
+    // We do this by triggering the next phase display from the current state already on server.
+    // Just re-show the question and face-down card for the new phase.
+    document.getElementById('buttons').innerHTML = '';
+    setPhase(`Round ${phase + 1} of 4`);
+    setResult('');
+
+    // Fetch current card state - the server already has the card drawn, just re-render
+    const res = await fetch('/api/account');
+    const acct = await res.json();
+    updateMoneyBar(acct.balance, currentBet, mult);
+    showGuessButtons(phase, mult);
+  }
+
+  // Sends a withdraw request to the server
+  async function doWithdraw() {
+    const res = await fetch('/api/withdraw', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    const data = await res.json();
+    if (!res.ok) { alert(data.error); return; }
+
+    addLogs(data.log.slice(-1));
+    setCardArea(data.cards);
+    setPhase('Cashed Out!');
+    setQuestion(`You walked away with ${data.payout.toLocaleString()} chips.`);
+    setResult(data.payout > currentBet ? `Profit: +${(data.payout - currentBet).toLocaleString()} chips` : '');
+    updateMoneyBar(data.balance, 0, 1);
+    resetChips();
+    showEndButtons(data.balance, null);
+  }
+
+  // ---------- Button builders ----------
+
+  // Shows the guess buttons for the current phase
+  function showGuessButtons(phase, mult) {
+    const btnSets = [
+      [['Red','btn-red','red'], ['Black','btn-blue','black']],
+      [['Higher','btn-green','higher'], ['Lower','btn-orange','lower']],
+      [['Inside','btn-purple','inside'], ['Outside','btn-blue','outside']],
+      [['\u2660 Spades','btn-blue','\u2660'], ['\u2665 Hearts','btn-red','\u2665'],
+       ['\u2666 Diamonds','btn-orange','\u2666'], ['\u2663 Clubs','btn-green','\u2663']],
+    ];
+    const btnArea = document.getElementById('buttons');
+    btnArea.innerHTML = '';
+    const set = btnSets[phase] || [];
+    set.forEach(([label, cls, val]) => {
+      const b = document.createElement('button');
+      b.className = cls;
+      b.textContent = label;
+      b.onclick = () => { btnArea.innerHTML = ''; sendGuess(val); };
+      btnArea.appendChild(b);
+    });
+    // No withdraw option - player must keep riding or lose
+  }
+
+  // Shows Play Again button. If broke, triggers the pity sequence instead.
+  function showEndButtons(bal, pityMsg) {
+    const btnArea = document.getElementById('buttons');
+    btnArea.innerHTML = '';
+    if (bal > 0) {
+      const rb = document.createElement('button');
+      rb.className = 'btn-green';
+      rb.textContent = 'Play Again';
+      rb.onclick = resetToLobby;
+      btnArea.appendChild(rb);
+    }
+    // pity case is handled by showPitySequence separately
+  }
+
+  // Multi-step delay sequence shown when a player goes broke
+  function showPitySequence(msg) {
+    setPhase('Bust!');
+    setQuestion('Better luck next time.');
+    document.getElementById('buttons').innerHTML = '';
+
+    setTimeout(() => {
+      setPhase('...');
+      setQuestion('...');
+      setResult('');
+      setCardArea([]);
+
+      setTimeout(() => {
+        setPhase('');
+        setQuestion(msg);
+
+        setTimeout(() => {
+          const btnArea = document.getElementById('buttons');
+          const rb = document.createElement('button');
+          rb.className = 'btn-green';
+          rb.textContent = 'Take the 100 Chips';
+          rb.onclick = resetToLobby;
+          btnArea.appendChild(rb);
+          // Refresh balance display from server to show the 100 pity chips
+          fetch('/api/account').then(r => r.json()).then(d => {
+            updateMoneyBar(d.balance, 0, 1);
+          });
+        }, 2000);
+      }, 1500);
+    }, 2500);
+  }
+
+  // Resets UI back to the bet screen
+  function resetToLobby() {
+    currentBet = 0;
+    currentPhase = 0;
+    document.getElementById('bet-display').textContent = '0';
+    document.getElementById('bet-area').style.display = 'flex';
+    document.getElementById('card-area').innerHTML = '';
+    document.getElementById('buttons').innerHTML = '';
+    setPhase('Place your bet to start!');
+    setQuestion('How much are you willing to risk?');
+    setResult('');
+    resetChips();
+  }
+</script>
+</body>
+</html>

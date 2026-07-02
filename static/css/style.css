@@ -1,22 +1,294 @@
+/* Forces all elements to use sharp pixel rendering instead of anti-aliasing, and resets spacing */
+* { box-sizing: border-box; margin: 0; padding: 0; image-rendering: pixelated; }
+
+/* Main page background and font setup */
 body {
-    font-family: Arial, sans-serif;
-    text-align: center;
-    background-color: white;
-    color: black;
-    margin-top: 50px;
+  background: #1e3d1e; /* page background - medium dark green */
+  font-family: 'Press Start 2P', monospace; /* retro pixel font loaded from Google Fonts */
+  color: #e0ffe0; /* default text color - light mint green */
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px;
 }
 
+/* Main game title at the top of the page */
+h1 {
+  font-size: 1.4rem;
+  margin-bottom: 6px;
+  color: #ffe066; /* title text - golden yellow */
+  text-shadow: 3px 3px 0 #7a6000, -1px -1px 0 #000; /* dark gold shadow + black outline */
+  letter-spacing: 2px;
+}
+
+/* Tagline under the title */
+#subtitle {
+  font-size: 0.55rem;
+  opacity: 0.7;
+  margin-bottom: 20px;
+  letter-spacing: 1px;
+}
+
+/* Small account ID text shown under the subtitle */
+#player-tag {
+  font-size: 0.45rem !important;
+}
+
+/* Main wrapper that holds all game elements in a vertical column */
+#game-area {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  max-width: 640px;
+}
+
+/* Banner showing the current round number */
+#phase-banner {
+  background: #0d2b0d; /* deep dark green - same as all other boxes */
+  border: 3px solid #ffe066; /* golden yellow border */
+  box-shadow: 4px 4px 0 #7a6000; /* dark gold pixel shadow */
+  padding: 10px 16px;
+  font-size: 0.65rem;
+  text-align: center;
+  width: 100%;
+  color: #ffe066; /* text - golden yellow */
+  letter-spacing: 1px;
+}
+
+/* Row of round tracker chips (2x, 3x, 4x, 20x) */
+#multiplier-strip {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+  width: 100%;
+  flex-wrap: wrap;
+}
+
+/* Default state - dimmed and gray when the round hasn't been reached */
+.mult-chip {
+  padding: 5px 10px;
+  font-size: 0.5rem;
+  background: #0d2b0d; /* deep dark green */
+  border: 2px solid #444; /* dark gray border */
+  box-shadow: 2px 2px 0 #000; /* black pixel shadow */
+  opacity: 0.5; /* dimmed */
+  color: #aaa; /* muted gray text */
+}
+
+/* The chip for the round currently being played */
+.mult-chip.active {
+  background: #7a6000; /* dark gold background */
+  border-color: #ffe066; /* golden yellow border */
+  box-shadow: 3px 3px 0 #000;
+  color: #ffe066; /* golden yellow text */
+  opacity: 1;
+}
+
+/* Chips for rounds already completed */
+.mult-chip.done {
+  background: #004400; /* dark green background */
+  border-color: #00cc44; /* bright green border */
+  color: #00cc44; /* bright green text */
+  opacity: 1;
+}
+
+/* Box that displays the current round's question */
+#question-box {
+  font-size: 0.7rem;
+  text-align: center;
+  background: #0d2b0d; /* deep dark green */
+  border: 3px solid #00cc44; /* bright green border */
+  box-shadow: 4px 4px 0 #004400; /* dark green pixel shadow */
+  padding: 14px 16px;
+  width: 100%;
+  min-height: 58px;
+  line-height: 1.8;
+  color: #00ff66; /* question text - bright lime green */
+}
+
+/* Container that holds all the visible playing cards */
+#card-area {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: center;
+  min-height: 130px;
+}
+
+/* Base playing card style */
+.card {
+  width: 80px;
+  height: 115px;
+  background: #f0f0e0; /* card face - off white */
+  border: 3px solid #000; /* black border */
+  box-shadow: 4px 4px 0 #000; /* black pixel shadow */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  position: relative;
+}
+
+.card.red   { color: #cc0000; } /* red suits - hearts and diamonds */
+.card.black { color: #111111; } /* black suits - spades and clubs */
+
+/* Card shown face down before it's revealed */
+.card.face-down {
+  background: #1a1a7a; /* card back - dark navy blue */
+  color: transparent;
+  /* crosshatch grid pattern on the back */
+  background-image:
+    repeating-linear-gradient(0deg, #ffffff18 0px, #ffffff18 2px, transparent 2px, transparent 8px),
+    repeating-linear-gradient(90deg, #ffffff18 0px, #ffffff18 2px, transparent 2px, transparent 8px);
+}
+
+/* Small rank/suit text in the corners of the card */
+.card .corner {
+  position: absolute;
+  font-size: 0.45rem;
+  line-height: 1.3;
+  font-family: 'Press Start 2P', monospace;
+}
+.card .corner.tl { top: 4px; left: 5px; } /* top-left corner */
+.card .corner.br { bottom: 4px; right: 5px; transform: rotate(180deg); } /* bottom-right corner, flipped */
+.card .suit { font-size: 1.6rem; } /* large center suit symbol */
+
+/* Text shown below the cards after a guess */
+#result-msg {
+  font-size: 0.65rem;
+  min-height: 34px;
+  text-align: center;
+  color: #ffe066; /* result text - golden yellow */
+  line-height: 1.8;
+  text-shadow: 2px 2px 0 #000; /* black drop shadow */
+}
+
+/* Container for all action buttons */
+#buttons {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+/* Base style shared by all buttons */
 button {
-    padding: 10px 20px;
-    margin: 10px;
-    font-size: 18px;
-    cursor: pointer;
+  padding: 10px 16px;
+  font-size: 0.6rem;
+  font-family: 'Press Start 2P', monospace;
+  border: 3px solid #000; /* black border */
+  box-shadow: 4px 4px 0 #000; /* black pixel shadow - gives the 3D raised look */
+  cursor: pointer;
+  transition: box-shadow 0.05s, transform 0.05s;
+  letter-spacing: 0.5px;
+  line-height: 1.6;
 }
 
-#resultText {
-    font-weight: bold;
+button:hover  { box-shadow: 2px 2px 0 #000; transform: translate(2px, 2px); } /* shifts down on hover */
+button:active { box-shadow: 0px 0px 0 #000; transform: translate(4px, 4px); } /* fully presses in on click */
+
+/* Button color variants */
+.btn-red    { background: #cc2200; color: #fff; border-color: #000; } /* red - Red guess, Hearts */
+.btn-blue   { background: #0044cc; color: #fff; border-color: #000; } /* blue - Black guess, Spades, Outside */
+.btn-green  { background: #007722; color: #fff; border-color: #000; } /* green - Higher, Clubs, Keep Riding, Play Again */
+.btn-purple { background: #660088; color: #fff; border-color: #000; } /* purple - Inside */
+.btn-orange { background: #cc5500; color: #fff; border-color: #000; } /* orange - Lower, Diamonds */
+.btn-yellow { background: #ccaa00; color: #000; border-color: #000; } /* gold - Withdraw, Place Bet */
+.btn-gray   { background: #445544; color: #fff; border-color: #000; } /* gray-green - fallback/unused */
+
+/* Bar showing balance, bet, and potential payout */
+#money-bar {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+  justify-content: center;
+  font-size: 0.55rem;
+  background: #0d2b0d; /* deep dark green */
+  border: 3px solid #00cc44; /* bright green border */
+  box-shadow: 4px 4px 0 #004400; /* dark green pixel shadow */
+  padding: 10px 16px;
+  width: 100%;
+  line-height: 2;
 }
 
-#resetButton {
-    margin-top: 30px;
+#money-bar span strong { color: #ffe066; } /* chip number values - golden yellow */
+
+/* Panel where the player enters their bet at the start */
+#bet-area {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  background: #0d2b0d; /* deep dark green */
+  border: 3px solid #ffe066; /* golden yellow border */
+  box-shadow: 4px 4px 0 #7a6000; /* dark gold pixel shadow */
+  padding: 18px 20px;
+  width: 100%;
 }
+
+#bet-area label { font-size: 0.6rem; color: #ffe066; } /* label text - golden yellow */
+
+/* Read-only display showing the current bet amount being typed */
+#bet-display {
+  width: 200px;
+  padding: 10px;
+  font-size: 1rem;
+  font-family: 'Press Start 2P', monospace;
+  text-align: right;
+  border: 3px solid #ffe066; /* golden yellow border */
+  box-shadow: 3px 3px 0 #000;
+  background: #0d2b0d; /* deep dark green */
+  color: #ffe066; /* number color - golden yellow */
+  letter-spacing: 2px;
+}
+
+/* Grid layout for the number keypad */
+#keypad {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  width: 200px;
+}
+
+/* Individual keypad button */
+.kp-btn {
+  padding: 12px 0;
+  font-size: 0.65rem;
+  font-family: 'Press Start 2P', monospace;
+  background: #1a4a1a; /* slightly lighter dark green */
+  color: #e0ffe0; /* light mint text */
+  border: 3px solid #336633; /* muted green border */
+  box-shadow: 3px 3px 0 #000;
+  cursor: pointer;
+  text-align: center;
+  transition: box-shadow 0.05s, transform 0.05s;
+}
+
+.kp-btn:hover  { box-shadow: 1px 1px 0 #000; transform: translate(2px, 2px); }
+.kp-btn:active { box-shadow: 0px 0px 0 #000; transform: translate(3px, 3px); }
+
+/* Backspace key - red tint */
+.kp-del { background: #4a1a1a; color: #ff8888; border-color: #883333; }
+/* Enter/confirm key - gold tint */
+.kp-enter { background: #4a3a00; color: #ffe066; border-color: #886600; }
+
+/* Scrollable history panel showing round results */
+#round-log {
+  background: #0d2b0d; /* deep dark green */
+  border: 3px solid #334433; /* muted dark green border */
+  padding: 10px 14px;
+  width: 100%;
+  max-height: 120px;
+  overflow-y: auto;
+  font-size: 0.48rem;
+  line-height: 2;
+}
+
+#round-log h3 { margin-bottom: 4px; font-size: 0.5rem; color: #667766; } /* heading - muted gray-green */
+.log-win  { color: #00ff66; } /* correct guess entries - bright lime green */
+.log-lose { color: #ff4444; } /* wrong guess entries - bright red */
+.log-cash { color: #ffe066; } /* cashout and payout entries - golden yellow */
