@@ -2,21 +2,164 @@
 <html>
 <head>
     <title>Ride the Bus</title>
+
     <link rel="stylesheet" href="/static/css/style.css">
 </head>
+
 <body>
-    <h1>Ride the Bus</h1>
-
-    <h2 id="roundText">Round: 1</h2>
-    <h2 id="cardText">No card drawn yet.</h2>
-    <h2 id="resultText"></h2>
-
-    <div id="buttonContainer"></div>
-
-    <button id="resetButton" onclick="resetGame()">
-        Restart Game
+    <button
+        id="fullscreenButton"
+        onclick="goFullscreen()"
+    >
+        Enter Fullscreen
     </button>
 
+    <button
+        id="soundButton"
+        onclick="toggleAudio()"
+    >
+        🔊
+    </button>
+
+    <div id="gameContainer">
+
+        <h1></h1>
+
+        <h2 id="roundText"></h2>
+
+        <div id="tableArea">
+
+            <div id="playedCards">
+
+                <div class="cardSlot">
+
+                    <p>Red or Black</p>
+
+                    <img
+                        id="slot1"
+                        class="slotCard"
+                        src="/static/images/cards/empty.png"
+                    >
+
+                </div>
+
+                <div class="cardSlot">
+
+                    <p>Higher or Lower</p>
+
+                    <img
+                        id="slot2"
+                        class="slotCard"
+                        src="/static/images/cards/empty.png"
+                    >
+
+                </div>
+
+                <div class="cardSlot">
+
+                    <p>Inside or Outside</p>
+
+                    <img
+                        id="slot3"
+                        class="slotCard"
+                        src="/static/images/cards/empty.png"
+                    >
+
+                </div>
+
+            <div class="cardSlot">
+
+            <p>Guess the Suit</p>
+
+            <img
+                id="slot4"
+                class="slotCard"
+                src="/static/images/cards/empty.png"
+            >
+
+        </div>
+
+    </div>
+            <div id="currentCardArea">
+
+                <div id="cardContainer">
+
+                    <div id="cardInner">
+
+                        <img
+                            id="cardBack"
+                            class="cardFace"
+                            src="/static/images/cards/back.png"
+                            alt=""
+                        >
+
+                        <img
+                            id="cardFront"
+                            class="cardFace"
+                            src="/static/images/cards/back.png"
+                            alt=""
+                        >
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <div id="buttonContainer"></div>
+
+        <div id="continueContainer" style="display:none;">
+
+            <button onclick="continueRound()">
+                Continue
+            </button>
+
+            <button onclick="cashOut()">
+                Cash Out
+            </button>
+
+        </div>
+
+        <button
+            id="resetButton"
+            onclick="resetGame()"
+            style="display:none;"
+        >
+            Restart Run
+        </button>
+
+        <h2 id="cardText">No card drawn yet.</h2>
+
+        <h2 id="resultText"></h2>
+
+
+    </div>
+
+    <audio
+        id="ambienceAudio"
+        loop
+    >
+        <source
+            src="/static/audio/pirate_music.mp3"
+            type="audio/mpeg"
+        >
+    </audio>
+
+    
+
+    <audio
+    id="tavernAudio"
+    loop
+>
+    <source
+        src="/static/audio/crowded_tavern.mp3"
+        type="audio/mpeg"
+    >
+</audio>
+
     <script src="/static/js/game.js"></script>
+
 </body>
 </html>
