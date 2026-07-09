@@ -208,6 +208,12 @@
       continueBtn.onclick = () => advancePhase(data.phase, data.multiplier);
       btnArea.appendChild(continueBtn);
 
+      const withdrawBtn = document.createElement('button');
+      withdrawBtn.className = 'btn-orange';
+      withdrawBtn.textContent = `Withdraw ${winnings.toLocaleString()} chips`;
+      withdrawBtn.onclick = () => { btnArea.innerHTML = ''; doWithdraw(); };
+      btnArea.appendChild(withdrawBtn);
+
       currentMultiplier = data.multiplier;
 
     } else if (data.status === 'won') {
