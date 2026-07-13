@@ -13,10 +13,17 @@ def _get_conn():
     conn.execute('''
         CREATE TABLE IF NOT EXISTS accounts (
             player_id TEXT PRIMARY KEY,
-            balance   INTEGER NOT NULL
+            balance   INTEGER NOT NULL,
+            username  TEXT UNIQUE
         )
     ''')
     conn.commit()
+    # Migrate older databases that lack the username column
+    try:
+        conn.execute('ALTER TABLE accounts ADD COLUMN username TEXT UNIQUE')
+        conn.commit()
+    except sqlite3.OperationalError:
+        pass  # column already exists
     return conn
 
 def generate_id():
@@ -64,3 +71,37 @@ def get_balance(player_id):
     ).fetchone()
     conn.close()
     return row[0] if row else None
+
+def get_username(player_id):
+    """Fetch the username for a player. Returns None if not set."""
+    conn = _get_conn()
+    row = conn.execute(
+        'SELECT username FROM accounts WHERE player_id = ?', (player_id,)
+    ).fetchone()
+    conn.close()
+    return row[0] if row else None
+
+def set_username(player_id, username):
+    """
+    Assign a username to a player.
+    Returns True on success, False if the username is already taken.
+    """
+    conn = _get_conn()
+    try:
+        conn.execute('UPDATE accounts SET username = ? WHERE player_id = ?', (username, player_id))
+        conn.commit()
+        conn.close()
+        return True
+    except sqlite3.IntegrityError:
+        conn.close()
+        return False
+
+def get_leaderboard(limit=10):
+    """Return the top players by balance. Only includes players with a username."""
+    conn = _get_conn()
+    rows = conn.execute(
+        'SELECT username, balance FROM accounts WHERE username IS NOT NULL ORDER BY balance DESC LIMIT ?',
+        (limit,)
+    ).fetchall()
+    conn.close()
+    return [{'username': r[0], 'balance': r[1]} for r in rows]

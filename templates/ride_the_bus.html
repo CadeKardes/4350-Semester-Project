@@ -12,10 +12,22 @@
 <h1>Ride the Bus</h1>
 <p id="subtitle">Place your bet and ride for a multiplier</p>
 <p id="player-tag" style="font-size:0.78rem;opacity:0.5;margin-bottom:4px;">
-  Account ID: {{ player_id }} &nbsp;|&nbsp; First visit grants 5,000 chips
+  {% if username %}Player: {{ username }}{% else %}Account ID: {{ player_id }}{% endif %} &nbsp;|&nbsp; First visit grants 5,000 chips
 </p>
 
-<div id="game-area">
+<!-- Username registration overlay -->
+<div id="register-screen" style="{% if username %}display:none{% endif %}">
+  <div style="max-width:360px;margin:2rem auto;text-align:center;">
+    <h2 style="margin-bottom:1rem;white-space:nowrap;">Choose a Username</h2>
+    <p style="font-size:0.8rem;margin-bottom:1rem;">3&#8209;20 characters, letters and numbers only.</p>
+    <input type="text" id="username-input" maxlength="20" placeholder="Enter username"
+      style="font-family:'Press Start 2P',monospace;font-size:0.9rem;padding:0.6rem 1rem;width:100%;box-sizing:border-box;text-align:center;border:2px solid #555;background:#1a1a2e;color:#eee;margin-bottom:0.8rem;">
+    <p id="register-error" style="color:#ff6b6b;font-size:0.7rem;min-height:1.2em;margin-bottom:0.5rem;"></p>
+    <button id="register-btn" class="btn-green" onclick="registerUsername()">Register</button>
+  </div>
+</div>
+
+<div id="game-area" style="{% if not username %}display:none{% endif %}">
 
   <div id="money-bar">
     <span>Balance: <strong id="balanceDisplay">{{ balance }}</strong> chips</span>
@@ -58,9 +70,79 @@
   <div id="buttons"></div>
 
   <div id="round-log"><h3>Round History</h3></div>
+
+  <div id="leaderboard">
+    <h3>Leaderboard</h3>
+    <table id="lb-table">
+      <thead><tr><th>#</th><th>Player</th><th>Chips</th></tr></thead>
+      <tbody id="lb-body"></tbody>
+    </table>
+  </div>
 </div>
 
 <script>
+  // ---------- Username registration ----------
+
+  async function registerUsername() {
+    const input = document.getElementById('username-input');
+    const errEl = document.getElementById('register-error');
+    const username = input.value.trim();
+    errEl.textContent = '';
+
+    if (!username || username.length < 3) {
+      errEl.textContent = 'Username must be at least 3 characters.';
+      return;
+    }
+
+    const res = await fetch('/api/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username })
+    });
+    const data = await res.json();
+
+    if (!res.ok) {
+      errEl.textContent = data.error;
+      return;
+    }
+
+    // Registration successful - hide overlay, show game
+    document.getElementById('register-screen').style.display = 'none';
+    document.getElementById('game-area').style.display = '';
+    document.getElementById('player-tag').innerHTML =
+      'Player: ' + data.username + ' &nbsp;|&nbsp; First visit grants 5,000 chips';
+  }
+
+  // Allow pressing Enter to submit username
+  document.addEventListener('DOMContentLoaded', () => {
+    const input = document.getElementById('username-input');
+    if (input) {
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') registerUsername();
+      });
+    }
+  });
+
+  // ---------- Leaderboard ----------
+
+  async function loadLeaderboard() {
+    const res = await fetch('/api/leaderboard');
+    const data = await res.json();
+    const tbody = document.getElementById('lb-body');
+    tbody.innerHTML = '';
+    data.forEach((entry, i) => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td>${i + 1}</td><td>${entry.username}</td><td>${entry.balance.toLocaleString()}</td>`;
+      tbody.appendChild(tr);
+    });
+  }
+
+  // Load leaderboard on page load and refresh every 30 seconds
+  loadLeaderboard();
+  setInterval(loadLeaderboard, 30000);
+
+  // ---------- Game state ----------
+
   // Current balance tracked client-side for display; server is always the source of truth
   let balance = {{ balance }};
   let currentBet = 0;

@@ -1,6 +1,6 @@
 import random
 from flask import Flask, request, jsonify, session, render_template
-from game_logic.account import load_account, save_balance, get_balance
+from game_logic.account import load_account, save_balance, get_balance, get_username, set_username, get_leaderboard
 from game_logic.ride_the_bus import (
     new_game, evaluate_guess, cash_out,
     get_phase_question, get_multiplier, visible_cards
@@ -26,10 +26,41 @@ def index():
     player_id = session.get('player_id')
     player_id, balance = load_account(player_id)
     session['player_id'] = player_id
-    return render_template('ride_the_bus.html', player_id=player_id, balance=balance)
+    username = get_username(player_id)
+    return render_template('ride_the_bus.html', player_id=player_id, balance=balance, username=username)
 
 
 # ---------- Account API ----------
+
+@app.route('/api/register', methods=['POST'])
+def api_register():
+    """Set a username for the current player. Must be unique."""
+    player_id = session.get('player_id')
+    if not player_id:
+        return jsonify({'error': 'No session'}), 400
+
+    data = request.get_json()
+    username = data.get('username', '').strip()
+
+    if not username or len(username) < 3:
+        return jsonify({'error': 'Username must be at least 3 characters.'}), 400
+    if len(username) > 20:
+        return jsonify({'error': 'Username must be 20 characters or less.'}), 400
+    if not username.isalnum():
+        return jsonify({'error': 'Username must be letters and numbers only.'}), 400
+
+    success = set_username(player_id, username)
+    if not success:
+        return jsonify({'error': 'That username is already taken.'}), 409
+
+    return jsonify({'username': username})
+
+
+@app.route('/api/leaderboard', methods=['GET'])
+def api_leaderboard():
+    """Return the top 10 players by balance."""
+    return jsonify(get_leaderboard(10))
+
 
 @app.route('/api/account', methods=['GET'])
 def api_account():
