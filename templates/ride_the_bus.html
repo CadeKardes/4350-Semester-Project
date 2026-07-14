@@ -69,7 +69,6 @@
 
   <div id="buttons"></div>
 
-  <div id="round-log"><h3>Round History</h3></div>
 
   <div id="leaderboard">
     <h3>Leaderboard</h3>
@@ -78,9 +77,77 @@
       <tbody id="lb-body"></tbody>
     </table>
   </div>
+
+  <!-- Lottery Panel -->
+  <div id="lottery-panel">
+    <h3>Daily Lottery</h3>
+    <p id="lottery-pot">Pot: 0 chips</p>
+    <p id="lottery-tickets">Total tickets: 0</p>
+    <p id="lottery-mine">Your tickets: 0</p>
+    <p id="lottery-timer">Next draw: --:--:--</p>
+    <p id="lottery-winner" style="color:#ffe066;"></p>
+    <button class="btn-yellow" onclick="buyTicket()">Buy Ticket (100 chips)</button>
+  </div>
+
+  <!-- Side Bets Panel -->
+  <div id="sidebets-panel">
+    <h3>Bet on Others</h3>
+    <div class="search-wrap">
+      <input type="text" id="sidebet-search" placeholder="@username to find a player" autocomplete="off">
+      <div id="sidebet-dropdown" class="hidden"></div>
+    </div>
+    <div id="active-games-list"><p style="opacity:0.5;">No active games</p></div>
+    <div id="my-sidebets"></div>
+  </div>
+
+  <!-- Chat Panel -->
+  <div id="chat-panel">
+    <h3>Chat <span style="font-size:0.4rem;opacity:0.5;">(@ someone = 50 chips, private msg)</span></h3>
+    <div id="chat-messages"></div>
+    <div id="chat-input-wrap">
+      <div id="chat-input-area">
+        <input type="text" id="chat-input" maxlength="200" placeholder="Type a message... (@username for DM)" autocomplete="off">
+        <button class="btn-green" onclick="sendChat()">Send</button>
+      </div>
+      <div id="mention-dropdown" class="hidden"></div>
+    </div>
+  </div>
 </div>
 
+<audio id="bg-music" src="/static/FUN_bg_music.mp3" loop preload="auto"></audio>
+<button id="music-toggle" onclick="toggleMusic()" style="position:fixed;bottom:12px;right:12px;z-index:1000;font-size:0.45rem;padding:6px 10px;opacity:0.7;"
+  class="btn-gray">Music: OFF</button>
+
+<canvas id="confetti-canvas"></canvas>
 <script>
+  // ---------- Background music ----------
+
+  const bgMusic = document.getElementById('bg-music');
+  bgMusic.volume = 0.3;
+  let musicStarted = false;
+
+  function startMusic() {
+    if (musicStarted) return;
+    bgMusic.play().then(() => {
+      musicStarted = true;
+      document.getElementById('music-toggle').textContent = 'Music: ON';
+    }).catch(() => {});
+  }
+
+  function toggleMusic() {
+    if (bgMusic.paused) {
+      bgMusic.play();
+      musicStarted = true;
+      document.getElementById('music-toggle').textContent = 'Music: ON';
+    } else {
+      bgMusic.pause();
+      document.getElementById('music-toggle').textContent = 'Music: OFF';
+    }
+  }
+
+  // Start music on first click anywhere on the page
+  document.addEventListener('click', startMusic, { once: true });
+
   // ---------- Username registration ----------
 
   async function registerUsername() {
@@ -130,16 +197,323 @@
     const data = await res.json();
     const tbody = document.getElementById('lb-body');
     tbody.innerHTML = '';
-    data.forEach((entry, i) => {
+    for (let i = 0; i < 10; i++) {
       const tr = document.createElement('tr');
-      tr.innerHTML = `<td>${i + 1}</td><td>${entry.username}</td><td>${entry.balance.toLocaleString()}</td>`;
+      if (data[i]) {
+        tr.innerHTML = `<td>${i + 1}</td><td>${data[i].username}</td><td>${formatChips(data[i].balance)}</td>`;
+      } else {
+        tr.innerHTML = `<td>${i + 1}</td><td style="opacity:0.3;">---</td><td style="opacity:0.3;">-</td>`;
+      }
       tbody.appendChild(tr);
-    });
+    }
   }
 
   // Load leaderboard on page load and refresh every 30 seconds
   loadLeaderboard();
   setInterval(loadLeaderboard, 30000);
+
+  // ---------- Chat ----------
+
+  async function loadChat() {
+    const res = await fetch('/api/chat');
+    const msgs = await res.json();
+    const el = document.getElementById('chat-messages');
+    el.innerHTML = '';
+    msgs.forEach(m => {
+      const div = document.createElement('div');
+      if (m.is_private) {
+        div.className = 'chat-msg chat-private';
+        div.innerHTML = `<span class="dm-tag">DM</span> <strong>${m.username}</strong> → <strong>${m.recipient}</strong>: ${m.content}`;
+      } else {
+        div.className = 'chat-msg';
+        div.innerHTML = `<strong>${m.username}:</strong> ${m.content}`;
+      }
+      el.appendChild(div);
+    });
+    el.scrollTop = el.scrollHeight;
+  }
+
+  async function sendChat() {
+    const input = document.getElementById('chat-input');
+    const msg = input.value.trim();
+    if (!msg) return;
+    hideMentionDropdown();
+    const res = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: msg })
+    });
+    const data = await res.json();
+    if (!res.ok) { alert(data.error); return; }
+    input.value = '';
+    balance = data.balance;
+    document.getElementById('balanceDisplay').textContent = formatChips(balance);
+    loadChat();
+  }
+
+  // --- @mention autocomplete ---
+  let mentionSearchTimeout = null;
+
+  function setupChatInput() {
+    const ci = document.getElementById('chat-input');
+    if (!ci) return;
+
+    ci.addEventListener('keydown', e => {
+      if (e.key === 'Enter') { sendChat(); return; }
+      if (e.key === 'Escape') { hideMentionDropdown(); return; }
+      // Arrow key navigation in dropdown
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        const dd = document.getElementById('mention-dropdown');
+        if (!dd.classList.contains('hidden')) {
+          e.preventDefault();
+          navigateDropdown(e.key === 'ArrowDown' ? 1 : -1);
+        }
+      }
+      if (e.key === 'Tab') {
+        const dd = document.getElementById('mention-dropdown');
+        if (!dd.classList.contains('hidden')) {
+          e.preventDefault();
+          selectHighlighted();
+        }
+      }
+    });
+
+    ci.addEventListener('input', () => {
+      const val = ci.value;
+      // Find if we're currently typing an @mention
+      const atIdx = val.lastIndexOf('@');
+      if (atIdx === -1 || (atIdx > 0 && val[atIdx - 1] !== ' ')) {
+        hideMentionDropdown();
+        return;
+      }
+      const afterAt = val.substring(atIdx + 1);
+      // If there's a space after the username part, stop showing dropdown
+      if (afterAt.includes(' ')) {
+        hideMentionDropdown();
+        return;
+      }
+      if (afterAt.length === 0) {
+        hideMentionDropdown();
+        return;
+      }
+      // Debounce the search
+      clearTimeout(mentionSearchTimeout);
+      mentionSearchTimeout = setTimeout(() => searchMentions(afterAt), 150);
+    });
+  }
+
+  async function searchMentions(prefix) {
+    const res = await fetch(`/api/users/search?q=${encodeURIComponent(prefix)}`);
+    const users = await res.json();
+    const dd = document.getElementById('mention-dropdown');
+    if (users.length === 0) { hideMentionDropdown(); return; }
+    dd.innerHTML = '';
+    dd.classList.remove('hidden');
+    users.forEach((u, i) => {
+      const item = document.createElement('div');
+      item.className = 'mention-item' + (i === 0 ? ' highlight' : '');
+      const dot = u.online ? '<span class="status-dot online"></span>' : '<span class="status-dot offline"></span>';
+      const statusText = u.online ? 'online' : 'offline';
+      item.innerHTML = `${dot} <span class="mention-name">${u.username}</span> <span class="mention-status">${statusText}</span>`;
+      item.onclick = () => selectMention(u.username);
+      dd.appendChild(item);
+    });
+  }
+
+  function selectMention(username) {
+    const ci = document.getElementById('chat-input');
+    const val = ci.value;
+    const atIdx = val.lastIndexOf('@');
+    ci.value = val.substring(0, atIdx) + '@' + username + ' ';
+    ci.focus();
+    hideMentionDropdown();
+  }
+
+  function hideMentionDropdown() {
+    document.getElementById('mention-dropdown').classList.add('hidden');
+  }
+
+  function navigateDropdown(dir) {
+    const items = document.querySelectorAll('.mention-item');
+    if (items.length === 0) return;
+    let idx = -1;
+    items.forEach((el, i) => { if (el.classList.contains('highlight')) idx = i; });
+    items.forEach(el => el.classList.remove('highlight'));
+    idx = (idx + dir + items.length) % items.length;
+    items[idx].classList.add('highlight');
+  }
+
+  function selectHighlighted() {
+    const hl = document.querySelector('.mention-item.highlight');
+    if (hl) {
+      const name = hl.querySelector('.mention-name').textContent;
+      selectMention(name);
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', setupChatInput);
+
+  loadChat();
+  setInterval(loadChat, 500);
+
+  // ---------- Lottery ----------
+
+  async function loadLottery() {
+    const res = await fetch('/api/lottery');
+    const info = await res.json();
+    document.getElementById('lottery-pot').textContent = `Pot: ${formatChips(info.pot)} chips`;
+    document.getElementById('lottery-tickets').textContent = `Total tickets: ${info.ticket_count}`;
+    document.getElementById('lottery-mine').textContent = `Your tickets: ${info.my_tickets}`;
+
+    const secs = Math.max(0, Math.floor(info.time_left));
+    const h = Math.floor(secs / 3600);
+    const m = Math.floor((secs % 3600) / 60);
+    const s = secs % 60;
+    document.getElementById('lottery-timer').textContent = `Next draw: ${h}h ${m}m ${s}s`;
+
+    const winEl = document.getElementById('lottery-winner');
+    if (info.last_winner) {
+      winEl.textContent = `Last winner: ${info.last_winner} (${formatChips(info.last_pot)} chips)`;
+    }
+    if (info.just_drawn) {
+      winEl.textContent = `WINNER: ${info.just_drawn.winner} won ${formatChips(info.just_drawn.pot)} chips!`;
+    }
+  }
+
+  async function buyTicket() {
+    const res = await fetch('/api/lottery/buy', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    const data = await res.json();
+    if (!res.ok) { alert(data.error); return; }
+    balance = data.balance;
+    document.getElementById('balanceDisplay').textContent = formatChips(balance);
+    loadLottery();
+  }
+
+  loadLottery();
+  setInterval(loadLottery, 10000);
+
+  // ---------- Side Bets ----------
+
+  async function loadActiveGames() {
+    const res = await fetch('/api/active-games');
+    const games = await res.json();
+    const el = document.getElementById('active-games-list');
+    if (games.length === 0) {
+      el.innerHTML = '<p style="opacity:0.5;">No active games right now</p>';
+      return;
+    }
+    // Shuffle and show up to 3 random
+    const shuffled = games.sort(() => Math.random() - 0.5).slice(0, 3);
+    el.innerHTML = '';
+    shuffled.forEach(g => {
+      const div = document.createElement('div');
+      div.className = 'active-game-row';
+      div.innerHTML = `
+        <span>${g.username} — R${g.phase + 1}/4</span>
+        <button class="btn-green" style="font-size:0.35rem;padding:3px 6px;" onclick="placeSideBet('${g.player_id}','win')">Win</button>
+        <button class="btn-red" style="font-size:0.35rem;padding:3px 6px;" onclick="placeSideBet('${g.player_id}','bust')">Bust</button>
+      `;
+      el.appendChild(div);
+    });
+  }
+
+  async function placeSideBet(targetId, prediction) {
+    const amount = parseInt(prompt('How many chips to bet? (min 50)'), 10);
+    if (!amount || amount < 50) { alert('Minimum bet is 50 chips'); return; }
+    const res = await fetch('/api/side-bet', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ target_id: targetId, amount, prediction })
+    });
+    const data = await res.json();
+    if (!res.ok) { alert(data.error); return; }
+    balance = data.balance;
+    document.getElementById('balanceDisplay').textContent = formatChips(balance);
+    loadMySideBets();
+  }
+
+  async function loadMySideBets() {
+    const res = await fetch('/api/my-side-bets');
+    const bets = await res.json();
+    const el = document.getElementById('my-sidebets');
+    if (bets.length === 0) { el.innerHTML = ''; return; }
+    el.innerHTML = '<p style="margin-top:6px;color:#ffe066;">Your bets:</p>';
+    bets.forEach(b => {
+      const p = document.createElement('p');
+      p.className = 'sidebet-entry';
+      p.textContent = `${formatChips(b.amount)} on ${b.target} to ${b.prediction}`;
+      el.appendChild(p);
+    });
+  }
+
+  // --- Side bet @search ---
+  let sbSearchTimeout = null;
+
+  function setupSidebetSearch() {
+    const si = document.getElementById('sidebet-search');
+    if (!si) return;
+
+    si.addEventListener('input', () => {
+      const val = si.value.trim();
+      if (!val.startsWith('@') || val.length < 2) {
+        hideSbDropdown();
+        return;
+      }
+      const prefix = val.substring(1);
+      clearTimeout(sbSearchTimeout);
+      sbSearchTimeout = setTimeout(() => searchSidebetPlayers(prefix), 150);
+    });
+
+    si.addEventListener('keydown', e => {
+      if (e.key === 'Escape') hideSbDropdown();
+    });
+  }
+
+  async function searchSidebetPlayers(prefix) {
+    const res = await fetch(`/api/users/search?q=${encodeURIComponent(prefix)}`);
+    const users = await res.json();
+    const dd = document.getElementById('sidebet-dropdown');
+    if (users.length === 0) { hideSbDropdown(); return; }
+    dd.innerHTML = '';
+    dd.classList.remove('hidden');
+    users.forEach(u => {
+      const item = document.createElement('div');
+      item.className = 'mention-item';
+      const dot = u.online ? '<span class="status-dot online"></span>' : '<span class="status-dot offline"></span>';
+      item.innerHTML = `${dot} <span class="mention-name">${u.username}</span>`;
+      item.onclick = () => selectSidebetPlayer(u.username);
+      dd.appendChild(item);
+    });
+  }
+
+  async function selectSidebetPlayer(username) {
+    hideSbDropdown();
+    document.getElementById('sidebet-search').value = '';
+    // Look up if they have an active game
+    const res = await fetch('/api/active-games');
+    const games = await res.json();
+    const match = games.find(g => g.username === username);
+    if (!match) {
+      alert(`${username} is not currently in a game`);
+      return;
+    }
+    const prediction = prompt(`Bet on ${username} (Round ${match.phase + 1}/4).\nType "win" or "bust":`);
+    if (prediction !== 'win' && prediction !== 'bust') { alert('Must be "win" or "bust"'); return; }
+    placeSideBet(match.player_id, prediction);
+  }
+
+  function hideSbDropdown() {
+    document.getElementById('sidebet-dropdown').classList.add('hidden');
+  }
+
+  document.addEventListener('DOMContentLoaded', setupSidebetSearch);
+
+  loadActiveGames();
+  loadMySideBets();
+  setInterval(loadActiveGames, 8000);
 
   // ---------- Game state ----------
 
@@ -168,16 +542,51 @@
 
   // ---------- UI helpers ----------
 
-  function setResult(msg)  { document.getElementById('result-msg').textContent = msg; }
+  // Format large chip numbers: 10,000+ -> 10K, 1,000,000+ -> 1M, etc.
+  function formatChips(n) {
+    if (n >= 1_000_000_000) return (n / 1_000_000_000).toFixed(n % 1_000_000_000 === 0 ? 0 : 1).replace(/\.0$/, '') + 'B';
+    if (n >= 1_000_000) return (n / 1_000_000).toFixed(n % 1_000_000 === 0 ? 0 : 1).replace(/\.0$/, '') + 'M';
+    if (n >= 10_000) return (n / 1_000).toFixed(n % 1_000 === 0 ? 0 : 1).replace(/\.0$/, '') + 'K';
+    return n.toLocaleString();
+  }
+
+  function setResult(msg, type) {
+    const el = document.getElementById('result-msg');
+    el.textContent = msg;
+    el.className = '';
+    if (msg) {
+      el.classList.add('anim');
+      if (type === 'win') el.classList.add('result-win');
+      if (type === 'lose') el.classList.add('result-lose');
+      el.addEventListener('animationend', () => el.classList.remove('anim'), { once: true });
+    }
+  }
   function setQuestion(q)  { document.getElementById('question-box').textContent = q; }
   function setPhase(txt)   { document.getElementById('phase-banner').textContent = txt; }
 
   function updateMoneyBar(bal, bet, mult) {
+    const balEl = document.getElementById('balanceDisplay');
+    const oldBal = balance;
     balance = bal;
     currentBet = bet;
-    document.getElementById('balanceDisplay').textContent = bal.toLocaleString();
-    document.getElementById('betDisplay').textContent = bet.toLocaleString();
-    document.getElementById('potentialDisplay').textContent = (bet * mult).toLocaleString();
+    animateValue(balEl, oldBal, bal, 400);
+    document.getElementById('betDisplay').textContent = formatChips(bet);
+    document.getElementById('potentialDisplay').textContent = formatChips(bet * mult);
+  }
+
+  // Smoothly count a number from start to end
+  function animateValue(el, start, end, duration) {
+    if (start === end) { el.textContent = formatChips(end); return; }
+    const startTime = performance.now();
+    el.classList.add('balance-anim');
+    function tick(now) {
+      const progress = Math.min((now - startTime) / duration, 1);
+      const current = Math.round(start + (end - start) * progress);
+      el.textContent = formatChips(current);
+      if (progress < 1) requestAnimationFrame(tick);
+      else el.classList.remove('balance-anim');
+    }
+    requestAnimationFrame(tick);
   }
 
   // Marks round chips as done (green), active (gold), or default (gray)
@@ -213,10 +622,20 @@
   }
 
   // Clears and redraws the card area from an array of card objects
-  function setCardArea(cards) {
+  function setCardArea(cards, effect) {
     const area = document.getElementById('card-area');
     area.innerHTML = '';
-    cards.forEach(c => area.appendChild(renderCard(c)));
+    cards.forEach((c, i) => {
+      const el = renderCard(c);
+      if (effect === 'flip' && i === cards.length - 1 && !c.face_down) {
+        el.classList.add('flip-in');
+      } else if (effect === 'shake') {
+        el.classList.add('shake');
+      } else if (effect === 'deal') {
+        el.classList.add('deal');
+      }
+      area.appendChild(el);
+    });
   }
 
   // Adds a line to the round history log
@@ -255,7 +674,7 @@
     updateChips(data.phase);
     setPhase('Round 1 of 4');
     setQuestion(data.question);
-    setCardArea(data.cards);
+    setCardArea(data.cards, 'deal');
     showGuessButtons(data.phase, data.multiplier);
   }
 
@@ -269,67 +688,39 @@
     const data = await res.json();
     if (!res.ok) { alert(data.error); return; }
 
-    setCardArea(data.cards);
+    const cardEffect = data.status === 'lost' ? 'shake' : 'flip';
+    setCardArea(data.cards, cardEffect);
     addLogs(data.log.slice(-1)); // add only the newest log entry
     updateMoneyBar(data.balance, currentBet, data.prev_multiplier || currentMultiplier);
     updateChips(data.phase);
 
     if (data.status === 'active') {
-      // Correct guess - show Keep Riding / Withdraw options
-      const winnings = data.potential;
-      setResult(`Correct! Ride further or withdraw ${winnings.toLocaleString()} chips.`);
+      // Correct guess - advance straight to next round
+      setResult(`Correct!`, 'win');
       setPhase(`Round ${data.phase + 1} of 4`);
       setQuestion(data.question);
-
-      const btnArea = document.getElementById('buttons');
-      btnArea.innerHTML = '';
-
-      const continueBtn = document.createElement('button');
-      continueBtn.className = 'btn-green';
-      continueBtn.textContent = `Keep Riding (${data.multiplier}x next)`;
-      continueBtn.onclick = () => advancePhase(data.phase, data.multiplier);
-      btnArea.appendChild(continueBtn);
-
-      const withdrawBtn = document.createElement('button');
-      withdrawBtn.className = 'btn-orange';
-      withdrawBtn.textContent = `Withdraw ${winnings.toLocaleString()} chips`;
-      withdrawBtn.onclick = () => { btnArea.innerHTML = ''; doWithdraw(); };
-      btnArea.appendChild(withdrawBtn);
-
       currentMultiplier = data.multiplier;
+      showGuessButtons(data.phase, data.multiplier);
 
     } else if (data.status === 'won') {
       setPhase('You Rode the Whole Bus!');
       setQuestion(`Full payout: ${data.payout.toLocaleString()} chips (20x)`);
-      setResult(`Profit: +${(data.payout - currentBet).toLocaleString()} chips`);
+      setResult(`Profit: +${(data.payout - currentBet).toLocaleString()} chips`, 'win');
       resetChips();
+      launchConfetti();
+      loadLeaderboard();
       showEndButtons(data.balance, data.pity_msg);
 
     } else if (data.status === 'lost') {
-      setResult('Wrong. You lost your bet.');
+      setResult('Wrong. You lost your bet.', 'lose');
       resetChips();
+      loadLeaderboard();
       if (data.pity_msg) {
         showPitySequence(data.pity_msg);
       } else {
         showEndButtons(data.balance, null);
       }
     }
-  }
-
-  // Tells the server to advance to the next phase card (Keep Riding)
-  async function advancePhase(phase, mult) {
-    // Re-fetch the game state by sending a special "next" advance via a new guess fetch
-    // We do this by triggering the next phase display from the current state already on server.
-    // Just re-show the question and face-down card for the new phase.
-    document.getElementById('buttons').innerHTML = '';
-    setPhase(`Round ${phase + 1} of 4`);
-    setResult('');
-
-    // Fetch current card state - the server already has the card drawn, just re-render
-    const res = await fetch('/api/account');
-    const acct = await res.json();
-    updateMoneyBar(acct.balance, currentBet, mult);
-    showGuessButtons(phase, mult);
   }
 
   // Sends a withdraw request to the server
@@ -372,7 +763,18 @@
       b.onclick = () => { btnArea.innerHTML = ''; sendGuess(val); };
       btnArea.appendChild(b);
     });
-    // No withdraw option - player must keep riding or lose
+    // Show withdraw button on its own row below the guess buttons
+    if (phase > 0) {
+      const row = document.createElement('div');
+      row.style.cssText = 'width:100%;display:flex;justify-content:center;margin-top:4px;';
+      const wb = document.createElement('button');
+      wb.className = 'btn-yellow';
+      wb.textContent = 'Withdraw';
+      wb.style.cssText = 'width:280px;';
+      wb.onclick = () => { btnArea.innerHTML = ''; doWithdraw(); };
+      row.appendChild(wb);
+      btnArea.appendChild(row);
+    }
   }
 
   // Shows Play Again button. If broke, triggers the pity sequence instead.
@@ -396,29 +798,41 @@
     document.getElementById('buttons').innerHTML = '';
 
     setTimeout(() => {
-      setPhase('...');
-      setQuestion('...');
-      setResult('');
-      setCardArea([]);
+      document.getElementById('phase-banner').classList.add('text-fade');
+      document.getElementById('question-box').classList.add('text-fade');
 
       setTimeout(() => {
-        setPhase('');
-        setQuestion(msg);
+        setPhase('...');
+        setQuestion('...');
+        setResult('');
+        setCardArea([]);
+        document.getElementById('phase-banner').classList.remove('text-fade');
+        document.getElementById('question-box').classList.remove('text-fade');
 
         setTimeout(() => {
-          const btnArea = document.getElementById('buttons');
-          const rb = document.createElement('button');
-          rb.className = 'btn-green';
-          rb.textContent = 'Take the 100 Chips';
-          rb.onclick = resetToLobby;
-          btnArea.appendChild(rb);
-          // Refresh balance display from server to show the 100 pity chips
-          fetch('/api/account').then(r => r.json()).then(d => {
-            updateMoneyBar(d.balance, 0, 1);
-          });
-        }, 2000);
-      }, 1500);
-    }, 2500);
+          document.getElementById('question-box').classList.add('text-fade');
+
+          setTimeout(() => {
+            setPhase('');
+            setQuestion(msg);
+            document.getElementById('question-box').classList.remove('text-fade');
+
+            setTimeout(() => {
+              const btnArea = document.getElementById('buttons');
+              const rb = document.createElement('button');
+              rb.className = 'btn-green';
+              rb.textContent = 'Take the 100 Chips';
+              rb.onclick = resetToLobby;
+              btnArea.appendChild(rb);
+              // Refresh balance display from server to show the 100 pity chips
+              fetch('/api/account').then(r => r.json()).then(d => {
+                updateMoneyBar(d.balance, 0, 1);
+              });
+            }, 2000);
+          }, 400);
+        }, 1200);
+      }, 400);
+    }, 2000);
   }
 
   // Resets UI back to the bet screen
@@ -433,6 +847,55 @@
     setQuestion('How much are you willing to risk?');
     setResult('');
     resetChips();
+    loadLeaderboard();
+  }
+
+  // ---------- Confetti ----------
+
+  function launchConfetti() {
+    const canvas = document.getElementById('confetti-canvas');
+    const ctx = canvas.getContext('2d');
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    const colors = ['#ffe066','#00ff66','#ff4444','#00ccff','#ff66ff','#ff8800'];
+    const pieces = [];
+    for (let i = 0; i < 120; i++) {
+      pieces.push({
+        x: Math.random() * canvas.width,
+        y: Math.random() * -canvas.height,
+        w: 4 + Math.random() * 6,
+        h: 6 + Math.random() * 8,
+        color: colors[Math.floor(Math.random() * colors.length)],
+        vx: (Math.random() - 0.5) * 4,
+        vy: 2 + Math.random() * 4,
+        rot: Math.random() * Math.PI * 2,
+        rv: (Math.random() - 0.5) * 0.2,
+      });
+    }
+
+    let frame = 0;
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      let alive = false;
+      pieces.forEach(p => {
+        p.x += p.vx;
+        p.y += p.vy;
+        p.vy += 0.05;
+        p.rot += p.rv;
+        if (p.y < canvas.height + 20) alive = true;
+        ctx.save();
+        ctx.translate(p.x, p.y);
+        ctx.rotate(p.rot);
+        ctx.fillStyle = p.color;
+        ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+        ctx.restore();
+      });
+      frame++;
+      if (alive && frame < 300) requestAnimationFrame(draw);
+      else ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+    requestAnimationFrame(draw);
   }
 </script>
 </body>
