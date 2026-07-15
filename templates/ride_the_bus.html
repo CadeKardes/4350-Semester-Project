@@ -69,7 +69,6 @@
 
   <div id="buttons"></div>
 
-
   <div id="leaderboard">
     <h3>Leaderboard</h3>
     <table id="lb-table">
@@ -638,18 +637,6 @@
     });
   }
 
-  // Adds a line to the round history log
-  function addLogs(entries) {
-    const log = document.getElementById('round-log');
-    entries.forEach(entry => {
-      const p = document.createElement('p');
-      p.className = entry.type === 'win' ? 'log-win' : entry.type === 'lose' ? 'log-lose' : 'log-cash';
-      p.textContent = entry.msg;
-      log.appendChild(p);
-    });
-    log.scrollTop = log.scrollHeight;
-  }
-
   // ---------- Game actions ----------
 
   // Sends the bet to the server and starts the game
@@ -665,7 +652,6 @@
     const data = await res.json();
     if (!res.ok) { alert(data.error); return; }
 
-    document.getElementById('round-log').innerHTML = '<h3>Round History</h3>';
     document.getElementById('bet-area').style.display = 'none';
     document.getElementById('buttons').innerHTML = '';
     setResult('');
@@ -690,7 +676,6 @@
 
     const cardEffect = data.status === 'lost' ? 'shake' : 'flip';
     setCardArea(data.cards, cardEffect);
-    addLogs(data.log.slice(-1)); // add only the newest log entry
     updateMoneyBar(data.balance, currentBet, data.prev_multiplier || currentMultiplier);
     updateChips(data.phase);
 
@@ -732,7 +717,6 @@
     const data = await res.json();
     if (!res.ok) { alert(data.error); return; }
 
-    addLogs(data.log.slice(-1));
     setCardArea(data.cards);
     setPhase('Cashed Out!');
     setQuestion(`You walked away with ${data.payout.toLocaleString()} chips.`);
