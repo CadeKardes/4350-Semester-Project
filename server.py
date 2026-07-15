@@ -82,12 +82,17 @@ def api_leaderboard():
 
 @app.route('/api/account', methods=['GET'])
 def api_account():
-    """Return the current player's ID and balance."""
+    """Return the current player's ID and balance. Auto-refills if broke."""
     player_id = session.get('player_id')
     if not player_id:
         return jsonify({'error': 'No session'}), 400
     balance = get_balance(player_id)
-    return jsonify({'player_id': player_id, 'balance': balance})
+    pity_msg = None
+    if balance is not None and balance <= 0:
+        pity_msg = random.choice(PITY_MESSAGES)
+        balance = 100
+        save_balance(player_id, balance)
+    return jsonify({'player_id': player_id, 'balance': balance, 'pity_msg': pity_msg})
 
 
 # ---------- Game API ----------
@@ -109,6 +114,14 @@ def api_bet():
 
     if not isinstance(bet, int) or bet < 1:
         return jsonify({'error': 'Enter a valid bet.'}), 400
+
+    # Auto-refill when player is broke so they never get stuck at 0
+    if balance <= 0:
+        pity_msg = random.choice(PITY_MESSAGES)
+        balance = 100
+        save_balance(player_id, balance)
+        return jsonify({'refilled': True, 'balance': balance, 'pity_msg': pity_msg})
+
     if bet > balance:
         return jsonify({'error': "You don't have enough chips!"}), 400
 

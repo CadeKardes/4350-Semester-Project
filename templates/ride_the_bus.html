@@ -523,6 +523,26 @@
   let currentMultiplier = 1;
 
   const MULTIPLIERS = [2, 3, 4, 20];
+  let pityShowing = false;
+
+  // Every 5 seconds, check if the player is broke and not mid-game
+  setInterval(async () => {
+    if (pityShowing) return;
+    const betArea = document.getElementById('bet-area');
+    const inLobby = betArea && betArea.style.display !== 'none';
+    if (!inLobby) return;
+    try {
+      const res = await fetch('/api/account');
+      const data = await res.json();
+      if (data.pity_msg) {
+        pityShowing = true;
+        betArea.style.display = 'none';
+        showPitySequence(data.pity_msg);
+      } else {
+        updateMoneyBar(data.balance, 0, 1);
+      }
+    } catch (e) { /* ignore fetch errors */ }
+  }, 5000);
 
   // ---------- Keypad ----------
 
@@ -651,6 +671,13 @@
     });
     const data = await res.json();
     if (!res.ok) { alert(data.error); return; }
+
+    // Player was broke — show the pity refill sequence then return to lobby
+    if (data.refilled) {
+      document.getElementById('bet-area').style.display = 'none';
+      showPitySequence(data.pity_msg);
+      return;
+    }
 
     document.getElementById('bet-area').style.display = 'none';
     document.getElementById('buttons').innerHTML = '';
@@ -821,6 +848,7 @@
 
   // Resets UI back to the bet screen
   function resetToLobby() {
+    pityShowing = false;
     currentBet = 0;
     currentPhase = 0;
     document.getElementById('bet-display').textContent = '0';
