@@ -1,0 +1,13 @@
+services:
+  game:
+    build: .
+    ports:
+      - "5001:5000"
+    volumes:
+      # Mounts the app code directly into the container - changes to files take effect immediately
+      - .:/app
+      # Mounts a local folder called "data" to /data inside the container.
+      # This is where accounts.db lives so player balances survive restarts.
+      - ./data:/data
+    environment:
+      - DB_PATH=/data/accounts.db

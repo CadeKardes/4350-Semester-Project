@@ -1,0 +1,10 @@
+# SQLite database - contains player account data, never commit this
+data/
+
+# Python cache files
+__pycache__/
+*.py[cod]
+
+# Virtual environment if you ever run locally without Docker
+venv/
+.env
