@@ -1,0 +1,196 @@
+/* ===== Main Menu & Loading Screen ===== */
+
+.hidden {
+  display: none !important;
+}
+
+body.menu-page {
+  justify-content: center;
+  padding: clamp(8px, 2vw, 20px);
+}
+
+.menu-card {
+  width: min(92%, 520px);
+  background: #0d2b0d;
+  border: 4px solid #ffe066;
+  box-shadow: 6px 6px 0 #7a6000;
+  padding: clamp(24px, 6vw, 40px);
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: clamp(16px, 4vw, 24px);
+}
+
+.menu-title {
+  font-size: clamp(1.1rem, 5vw, 1.8rem);
+  color: #ffe066;
+  text-shadow: 3px 3px 0 #7a6000;
+  letter-spacing: 2px;
+  margin: 0;
+}
+
+.menu-subtitle {
+  font-size: clamp(0.45rem, 1.8vw, 0.65rem);
+  color: #e0ffe0;
+  opacity: 0.85;
+  line-height: 1.8;
+  margin: 0;
+}
+
+.menu-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(10px, 2vw, 14px);
+  width: 100%;
+  max-width: 280px;
+}
+
+.menu-btn {
+  width: 100%;
+  font-size: clamp(0.55rem, 2vw, 0.75rem);
+  padding: clamp(10px, 3vw, 14px) clamp(16px, 4vw, 22px);
+}
+
+.menu-footer {
+  font-size: clamp(0.35rem, 1.2vw, 0.5rem);
+  opacity: 0.5;
+  margin: 0;
+}
+
+.how-to-play {
+  background: #1a2a1a;
+  border: 2px solid #00cc44;
+  box-shadow: 3px 3px 0 #004400;
+  padding: clamp(12px, 3vw, 18px);
+  font-size: clamp(0.4rem, 1.5vw, 0.55rem);
+  line-height: 1.8;
+  color: #c0ffc0;
+  text-align: left;
+  width: 100%;
+}
+
+.how-to-play p {
+  margin-bottom: 0.6em;
+}
+
+.how-to-play strong {
+  color: #ffe066;
+}
+
+/* ===== Faux Loading Screen ===== */
+
+.loading-overlay {
+  position: fixed;
+  inset: 0;
+  background: #1e3d1e;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1001;
+  padding: clamp(8px, 2vw, 20px);
+}
+
+.loading-box {
+  width: min(92%, 420px);
+  background: #0d2b0d;
+  border: 4px solid #00cc44;
+  box-shadow: 6px 6px 0 #004400;
+  padding: clamp(24px, 6vw, 40px);
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: clamp(14px, 3vw, 20px);
+}
+
+.loading-title {
+  color: #00ff66;
+  font-size: clamp(0.75rem, 3.2vw, 1.05rem);
+  margin: 0;
+}
+
+.loading-bar {
+  width: 100%;
+  height: clamp(16px, 3vw, 22px);
+  background: #1a1a2e;
+  border: 2px solid #000;
+  box-shadow: inset 2px 2px 0 #000;
+  position: relative;
+  overflow: hidden;
+}
+
+.loading-fill {
+  height: 100%;
+  width: 0%;
+  background: repeating-linear-gradient(
+    90deg,
+    #00cc44 0 8px,
+    #00ff66 8px 16px
+  );
+  transition: width 0.05s linear;
+}
+
+.loading-status {
+  font-size: clamp(0.42rem, 1.5vw, 0.55rem);
+  color: #ffe066;
+  line-height: 1.8;
+  min-height: 1.6em;
+  margin: 0;
+}
+
+/* ===== Username Registration Overlay ===== */
+
+.register-overlay {
+  position: fixed;
+  inset: 0;
+  background: #1e3d1e;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 998;
+  padding: clamp(8px, 2vw, 20px);
+}
+
+.register-box {
+  width: min(92%, 420px);
+  background: #0d2b0d;
+  border: 4px solid #ffe066;
+  box-shadow: 6px 6px 0 #7a6000;
+  padding: clamp(24px, 6vw, 40px);
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: clamp(14px, 3vw, 20px);
+}
+
+.register-box h2 {
+  color: #ffe066;
+  font-size: clamp(0.75rem, 3.2vw, 1.05rem);
+  margin: 0;
+}
+
+.register-box p {
+  font-size: clamp(0.4rem, 1.5vw, 0.55rem);
+  color: #e0ffe0;
+  margin: 0;
+}
+
+#username-input {
+  font-family: 'Press Start 2P', monospace;
+  font-size: clamp(0.5rem, 2vw, 0.7rem);
+  padding: clamp(10px, 3vw, 14px);
+  width: 100%;
+  text-align: center;
+  border: 2px solid #555;
+  background: #1a1a2e;
+  color: #eee;
+}
+
+#register-error {
+  color: #ff6b6b;
+  font-size: clamp(0.35rem, 1.2vw, 0.5rem);
+  min-height: 1.2em;
+  margin: 0;
+}

@@ -45,19 +45,6 @@ h1 {
   max-width: 640px;
 }
 
-/* Banner showing the current round number */
-#phase-banner {
-  background: #0d2b0d; /* deep dark green - same as all other boxes */
-  border: 3px solid #ffe066; /* golden yellow border */
-  box-shadow: 4px 4px 0 #7a6000; /* dark gold pixel shadow */
-  padding: clamp(8px, 1.5vw, 10px) clamp(12px, 2vw, 16px);
-  font-size: clamp(0.5rem, 1.5vw, 0.65rem);
-  text-align: center;
-  width: 100%;
-  color: #ffe066; /* text - golden yellow */
-  letter-spacing: 1px;
-}
-
 /* Row of round tracker chips (2x, 3x, 4x, 20x) */
 #multiplier-strip {
   display: flex;
@@ -451,7 +438,7 @@ button:active { box-shadow: 0px 0px 0 #000; transform: translate(4px, 4px); } /*
 #register-screen { animation: fade-slide-in 0.6s ease-out; }
 
 /* Pity sequence - smooth text transitions */
-#phase-banner, #question-box {
+#question-box {
   transition: opacity 0.4s ease;
 }
 

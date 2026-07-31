@@ -37,14 +37,27 @@ PITY_MESSAGES = [
 
 # ---------- HTML pages ----------
 
-@app.route('/')
-def index():
-    """Load or create the player account and serve the game page."""
+def _load_player():
+    """Load or create the player account and keep the session fresh."""
     player_id = session.get('player_id')
     player_id, balance = load_account(player_id)
     session['player_id'] = player_id
     username = get_username(player_id)
     touch_activity(player_id)
+    return player_id, balance, username
+
+
+@app.route('/')
+def index():
+    """Show the main menu when players launch the game."""
+    player_id, balance, username = _load_player()
+    return render_template('main_menu.html', player_id=player_id, balance=balance, username=username)
+
+
+@app.route('/game')
+def game():
+    """Serve the actual card game after the menu / loading screen."""
+    player_id, balance, username = _load_player()
     return render_template('ride_the_bus.html', player_id=player_id, balance=balance, username=username)
 
 
