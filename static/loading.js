@@ -130,7 +130,7 @@ const loadingTips = [
   "Collect my pages.",
   "Made with Rust.",
   "If fighting is sure to result in victory, you must fight.",
-  "Check you email",
+  "Check your email",
   "Are you winning?",
   "Don't you have anything better to do?",
   "Our lawyers have advised us to not write this tip.",
