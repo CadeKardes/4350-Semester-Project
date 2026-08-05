@@ -6,8 +6,19 @@
   <title>Ride the Bus</title>
   <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/static/css/style.css">
+  <link rel="stylesheet" href="/static/css/menu.css">
 </head>
 <body>
+
+<div id="loading-screen" class="loading-overlay hidden">
+  <div class="loading-box">
+    <p class="loading-title">Loading...</p>
+    <div class="loading-bar">
+      <div id="loading-fill" class="loading-fill"></div>
+    </div>
+    <p id="loading-status" class="loading-status">Shuffling the deck...</p>
+  </div>
+</div>
 
 <h1>Ride the Bus</h1>
 <p id="subtitle">Place your bet and ride for a multiplier</p>
@@ -42,14 +53,14 @@
     <div class="mult-chip" id="chip3">Round 4 &bull; 20x</div>
   </div>
 
-  <div id="phase-banner">Place your bet to start!</div>
+  <div id="phase-banner"></div>
   <div id="question-box">How much are you willing to risk?</div>
 
   <div id="card-area"></div>
   <div id="result-msg"></div>
 
   <div id="bet-area">
-    <label>Enter your bet:</label>
+    <label>Enter your bet to start:</label>
     <div id="bet-display">0</div>
     <div id="keypad">
       <button class="kp-btn" onclick="kpPress('7')">7</button>
@@ -581,7 +592,7 @@
     }
   }
   function setQuestion(q)  { document.getElementById('question-box').textContent = q; }
-  function setPhase(txt)   { document.getElementById('phase-banner').textContent = txt; }
+  function setPhase(txt)   { const el = document.getElementById('phase-banner'); if (el) el.textContent = txt; }
 
   function updateMoneyBar(bal, bet, mult) {
     const balEl = document.getElementById('balanceDisplay');
@@ -685,7 +696,7 @@
 
     updateMoneyBar(data.balance, bet, data.multiplier);
     updateChips(data.phase);
-    setPhase('Round 1 of 4');
+    setPhase(`Round ${data.phase + 1} of 4`);
     setQuestion(data.question);
     setCardArea(data.cards, 'deal');
     showGuessButtons(data.phase, data.multiplier);
@@ -804,27 +815,22 @@
 
   // Multi-step delay sequence shown when a player goes broke
   function showPitySequence(msg) {
-    setPhase('Bust!');
-    setQuestion('Better luck next time.');
+    setQuestion('Bust! Better luck next time.');
     document.getElementById('buttons').innerHTML = '';
 
     setTimeout(() => {
-      document.getElementById('phase-banner').classList.add('text-fade');
       document.getElementById('question-box').classList.add('text-fade');
 
       setTimeout(() => {
-        setPhase('...');
         setQuestion('...');
         setResult('');
         setCardArea([]);
-        document.getElementById('phase-banner').classList.remove('text-fade');
         document.getElementById('question-box').classList.remove('text-fade');
 
         setTimeout(() => {
           document.getElementById('question-box').classList.add('text-fade');
 
           setTimeout(() => {
-            setPhase('');
             setQuestion(msg);
             document.getElementById('question-box').classList.remove('text-fade');
 
@@ -855,7 +861,6 @@
     document.getElementById('bet-area').style.display = 'flex';
     document.getElementById('card-area').innerHTML = '';
     document.getElementById('buttons').innerHTML = '';
-    setPhase('Place your bet to start!');
     setQuestion('How much are you willing to risk?');
     setResult('');
     resetChips();
@@ -910,5 +915,6 @@
     requestAnimationFrame(draw);
   }
 </script>
+<script src="/static/loading.js"></script>
 </body>
 </html>

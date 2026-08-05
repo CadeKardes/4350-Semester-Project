@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ride the Bus - Main Menu</title>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/style.css">
+  <link rel="stylesheet" href="/static/css/menu.css">
+</head>
+<body class="menu-page">
+
+  <div id="menu-screen" class="menu-card">
+    <h1 class="menu-title">Ride the Bus</h1>
+
+    <div class="menu-buttons">
+      <button class="menu-btn btn-green" onclick="startGame()">Start Game</button>
+      <button class="menu-btn btn-yellow" onclick="toggleHowTo()">How to Play</button>
+      <button class="menu-btn btn-red" onclick="quitGame()">Quit</button>
+    </div>
+
+    <div id="how-to" class="how-to-play hidden">
+      <p>Four rounds. One face-down card each round.</p>
+      <p><strong>Round 1 (2x):</strong> Red or Black?</p>
+      <p><strong>Round 2 (3x):</strong> Higher or Lower number?</p>
+      <p><strong>Round 3 (4x):</strong> Inside or Outside?</p>
+      <p><strong>Round 4 (20x):</strong> Guess the suit.</p>
+      <p>One wrong guess and you lose your bet. Ride the full bus to maximize your rewards!</p>
+    </div>
+
+    <p class="menu-footer">Created by Cade and the Freeloaders.</p>
+  </div>
+
+  <div id="register-screen" class="register-overlay hidden">
+    <div class="register-box">
+      <h2>Choose a Username</h2>
+      <p>3-20 characters, letters and numbers only.</p>
+      <input type="text" id="username-input" maxlength="20" placeholder="Enter username" autocomplete="off">
+      <p id="register-error"></p>
+      <button class="menu-btn btn-green" onclick="registerUsername()">Register</button>
+    </div>
+  </div>
+
+  <script>
+    let currentUsername = {{ username|tojson }};
+
+    function toggleHowTo() {
+      const el = document.getElementById('how-to');
+      el.classList.toggle('hidden');
+    }
+
+    function quitGame() {
+      window.close();
+    }
+
+    async function registerUsername() {
+      const input = document.getElementById('username-input');
+      const errEl = document.getElementById('register-error');
+      const username = input.value.trim();
+      errEl.textContent = '';
+
+      if (!username || username.length < 3) {
+        errEl.textContent = 'Username must be at least 3 characters.';
+        return;
+      }
+      if (username.length > 20) {
+        errEl.textContent = 'Username must be 20 characters or less.';
+        return;
+      }
+      if (!/^[a-zA-Z0-9]+$/.test(username)) {
+        errEl.textContent = 'Username must be letters and numbers only.';
+        return;
+      }
+
+      const res = await fetch('/api/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username })
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        errEl.textContent = data.error || 'Registration failed.';
+        return;
+      }
+
+      currentUsername = data.username;
+      document.getElementById('register-screen').classList.add('hidden');
+      window.location.href = '/game';
+    }
+
+    function startGame() {
+      if (!currentUsername) {
+        document.getElementById('menu-screen').classList.add('hidden');
+        document.getElementById('register-screen').classList.remove('hidden');
+        const input = document.getElementById('username-input');
+        if (input) input.focus();
+        return;
+      }
+
+      window.location.href = '/game';
+    }
+
+    const usernameInput = document.getElementById('username-input');
+    if (usernameInput) {
+      usernameInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') registerUsername();
+      });
+    }
+  </script>
+
+</body>
+</html>
