@@ -661,3 +661,33 @@ button:active { box-shadow: 0px 0px 0 #000; transform: translate(4px, 4px); } /*
     bottom: auto;
   }
 }
+
+body.light { background: #1b1b1b; color: #d4d4d4; }
+
+body.light #money-bar,
+body.light #leaderboard,
+body.light #lottery-panel,
+body.light #sidebets-panel,
+body.light #chat-panel {
+  background: #252526;
+  border-color: #3e3e42;
+  color: #d4d4d4;
+}
+
+body.light #phase-banner,
+body.light #question-box {
+  background: #2d2d30;
+  border-color: #3e3e42;
+  color: #d4d4d4;
+}
+
+body.light .mult-chip {
+  background: #2d2d30;
+  border-color: #4a4a4f;
+  color: #a0a0a0;
+}
+
+body.light #bet-area {
+  background: #252526;
+  border-color: #3e3e42;
+}
